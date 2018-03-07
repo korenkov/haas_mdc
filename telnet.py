@@ -40,7 +40,7 @@ variables.append(parametr('z', 5023))       # Current Z position in machine coor
 variables.append(parametr('s', 3027))       # Spindle RPM
 variables.append(parametr('timer', 3001))   # Millisecond timer
 
-# Measuring with timeout=0.01 sec & wrile log-file
+# Measuring with timeout=0.01 sec & write log-file
 try:
     file = open('monitoring.log', 'w')
 
@@ -50,6 +50,7 @@ try:
             telnet.write('?Q600 %s\r' % item.command)
             # get response: read all symbols & parse
             item.set_value(telnet.read_until('\r'))
+        
         # output result as formatted string
         s = ''
         for x in variables:

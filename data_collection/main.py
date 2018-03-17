@@ -1,12 +1,12 @@
 import os
+import re
 import time
 import datetime
 import configparser
 import collections
 import threading
 import telnetlib
-
-import re
+import sqlite3
 
 
 BASE_DIR = os.path.dirname(__file__)
@@ -30,9 +30,28 @@ def parse_param(text):
     return round(float(PARAM_RE.findall(text)[0]), PARAM_PRECISION)
 
 
-def save_param(machine_id, code, value):
+def get_cursor():
+    active_thread = threading.local()
+    cursor = getattr(active_thread, '_cursor', None)
+    conn = getattr(active_thread, '_conn', None)
+    if not cursor:
+        print('create new connection to DB ...')
+        conn = sqlite3.connect('data.db')
+        cursor = conn.cursor()
+        active_thread._cursor = cursor
+        active_thread._conn = conn
+    return conn, cursor
+
+
+def save_param(log_date, param_code, param_val, machine_id):
     """Save param to database."""
-    raise NotImplemented()
+    conn, c = get_cursor()
+    sql = f"""
+    insert into params_data(log_date, param_code, param_val, machine_id) 
+    values ({log_date}, {param_code}, {param_val}, '{machine_id}');
+    """
+    c.execute(sql)
+    conn.commit()
 
 
 class Param:
@@ -87,20 +106,29 @@ def start_measuring(machine_id, code, configs, interval_seconds):
     host = configs[machine_id].get('host')
     port = configs[machine_id].get('port')
 
-    while 1:
-        print(f'{datetime.datetime.now()}: {code}, cnc: {machine_id}')
-        time.sleep(interval_seconds)
+    with telnetlib.Telnet(host, port, timeout=5) as tn:
+        while 1:
+            try:
+                # write to socket
+                tn.write(bytes(f'?Q600 {code}\r', encoding='utf8'))
 
-    # with telnetlib.Telnet(host, port) as tn:
-    #     while 1:
-    #         # write to socket
-    #         tn.write(f'?Q600 {code}\r')
-    #
-    #         # retrieve data from socket
-    #         val = parse_param(tn.read_until('\r'))
-    #
-    #         print(f'{datetime.datetime.now()}: {code}, '
-    #               f'cnc: {machine_id}, value: {val}')
+                # retrieve data from socket
+                bytes_data = tn.read_until(bytes('\r', encoding='utf8'))
+                val = parse_param(str(bytes_data))
+
+                print(f'{datetime.datetime.now()}: {code}, '
+                      f'cnc: {machine_id}, value: {val}')
+
+                save_param(time.time(), code, val, machine_id)
+
+                time.sleep(interval_seconds)
+            except KeyboardInterrupt:
+                print('--- end ---')
+                return
+            except Exception as e:
+                print(e)
+                print('reconnecting ...')
+                start_measuring(machine_id, code, configs, interval_seconds)
 
 
 def schedule_measuring(interval_value, interval_type,
@@ -135,8 +163,7 @@ def schedule_tasks(configs):
 
             schedule_measuring(
                 interval.get('interval_value'), interval.get('interval_type'),
-                machine_id, param_code, configs
-            )
+                machine_id, param_code, configs)
 
 
 def run_tasks():

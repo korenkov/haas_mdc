@@ -17,6 +17,14 @@ HOUR = 'h'
 DAY = 'D'
 WEEK = 'W'
 
+# param code: param name
+PARAM_NAMES_MAP = {
+    '1094': 'Spindle load',
+    '3022': 'Feed timer',
+    '3901': 'M30 count',
+    '5701': 'Tool life monitor counter'
+}
+
 # parsing param value string
 # for example: ">>MACRO, -182.633216" -> -182.633
 PARAM_RE = re.compile('[-+]?[0-9]*\.?[0-9]+', re.IGNORECASE)

@@ -17,6 +17,14 @@ HOUR = 'h'
 DAY = 'D'
 WEEK = 'W'
 
+# param code: param name
+PARAM_NAMES_MAP = {
+    '1094': 'Spindle load',
+    '3022': 'Feed timer',
+    '3901': 'M30 count',
+    '5701': 'Tool life monitor counter'
+}
+
 # parsing param value string
 # for example: ">>MACRO, -182.633216" -> -182.633
 PARAM_RE = re.compile('[-+]?[0-9]*\.?[0-9]+', re.IGNORECASE)
@@ -34,9 +42,8 @@ def get_cursor():
     active_thread = threading.local()
     cursor = getattr(active_thread, '_cursor', None)
     conn = getattr(active_thread, '_conn', None)
-    # print(active_thread)
     if not cursor:
-        print('create new connection to DB ...')
+        # print('create new connection to DB ...')
         conn = sqlite3.connect('data.db')
         cursor = conn.cursor()
         active_thread._cursor = cursor
@@ -91,26 +98,33 @@ def start_measuring(machine_id, code, configs, interval_seconds):
     host = configs[machine_id].get('host')
     port = configs[machine_id].get('port')
 
-    with telnetlib.Telnet(host, port, timeout=5) as tn:
-        while 1:
-            try:
-                # write to socket
-                tn.write(bytes(f'?Q600 {code}\r', encoding='utf8'))
+    def _process():
+        # write to socket
+        tn.write(bytes(f'?Q600 {code}\r', encoding='utf8'))
 
-                # retrieve data from socket
-                bytes_data = tn.read_until(bytes('\r', encoding='utf8'))
-                val = parse_param(str(bytes_data))
+        # retrieve data from socket
+        bytes_data = tn.read_until(bytes('\r', encoding='utf8'))
+        val = parse_param(str(bytes_data))
 
-                print(f'{datetime.datetime.now()}: {code}, '
-                      f'cnc: {machine_id}, value: {val}')
+        print(f'{datetime.datetime.now()}: {code}, '
+              f'cnc: {machine_id}, value: {val}')
 
-                save_param(time.time(), code, val, machine_id)
+        save_param(time.time(), code, val, machine_id)
 
-                time.sleep(interval_seconds)
-            except Exception as e:
-                print(e)
-                print('reconnecting ...')
-                start_measuring(machine_id, code, configs, interval_seconds)
+        time.sleep(interval_seconds)
+
+    try:
+        with telnetlib.Telnet(host, port, timeout=5) as tn:
+            while 1:
+                try:
+                    _process()
+                except (ConnectionResetError, ConnectionAbortedError, EOFError) as e:
+                    print(f'[{host}:{port}] {e}')
+                    print('reconnecting ...')
+                    start_measuring(machine_id, code, configs, interval_seconds)
+
+    except ConnectionRefusedError as e:
+        print(f'[{host}:{port}] {e}')
 
 
 def schedule_measuring(interval_value, interval_type,

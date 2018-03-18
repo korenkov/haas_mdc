@@ -6,9 +6,9 @@ c = conn.cursor()
 
 c.execute("""
 create table params_data (
-    log_date integer, 
     param_code integer,
-    param_val real, 
+    param_val  real, 
+    log_date   real,
     machine_id text
 )
 """)

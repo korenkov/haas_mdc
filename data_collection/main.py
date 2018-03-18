@@ -54,22 +54,6 @@ def save_param(log_date, param_code, param_val, machine_id):
     conn.commit()
 
 
-class Param:
-    #: parsing param value string
-    #: for example: ">>MACRO, -182.633216" -> -182.633
-    PARAM_RE = re.compile('[-+]?[0-9]*\.?[0-9]+', re.IGNORECASE)
-    PRECISION = 3
-
-    def __init__(self, name, command):
-        self.name = name        # custom name of macro variable (for example: "x")
-        self.command = command  # 4-digit macro variable number (for example: "5021")
-        self.value = None       # result of measuring (for example: 182.633)
-
-    @staticmethod
-    def parse(self, text):
-        self.value = round(float(self.PARAM_RE.findall(text)[0]), self.PRECISION)
-
-
 def parse_configs():
     # path to the configs directory
     CONFIGS_DIR = os.path.join(BASE_DIR, 'configs')

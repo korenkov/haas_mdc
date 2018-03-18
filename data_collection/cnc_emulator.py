@@ -1,3 +1,7 @@
+"""
+Current implementation support only one active clients
+"""
+
 import socketserver
 import random
 

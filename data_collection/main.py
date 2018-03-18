@@ -34,6 +34,7 @@ def get_cursor():
     active_thread = threading.local()
     cursor = getattr(active_thread, '_cursor', None)
     conn = getattr(active_thread, '_conn', None)
+    # print(active_thread)
     if not cursor:
         print('create new connection to DB ...')
         conn = sqlite3.connect('data.db')
@@ -106,9 +107,6 @@ def start_measuring(machine_id, code, configs, interval_seconds):
                 save_param(time.time(), code, val, machine_id)
 
                 time.sleep(interval_seconds)
-            except KeyboardInterrupt:
-                print('--- end ---')
-                return
             except Exception as e:
                 print(e)
                 print('reconnecting ...')

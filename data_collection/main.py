@@ -10,6 +10,8 @@ import sqlite3
 
 
 BASE_DIR = os.path.dirname(__file__)
+PROJECT_DIR = os.path.dirname(BASE_DIR)
+DATA_DB_PATH = os.path.join(PROJECT_DIR, 'data.db')
 
 SECOND = 's'
 MINUTE = 'm'
@@ -44,7 +46,7 @@ def get_cursor():
     conn = getattr(active_thread, '_conn', None)
     if not cursor:
         # print('create new connection to DB ...')
-        conn = sqlite3.connect('data.db')
+        conn = sqlite3.connect(DATA_DB_PATH)
         cursor = conn.cursor()
         active_thread._cursor = cursor
         active_thread._conn = conn

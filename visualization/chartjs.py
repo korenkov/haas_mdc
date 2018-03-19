@@ -1,43 +1,57 @@
 import json
-import random
+import uuid
 
-from jinja2 import Template
+import jinja2
 
+from utils import get_random_color, get_random_chars
 
-class CrudMixin:
-    @classmethod
-    def insert(cls):
-        raise NotImplemented()
-
-    @classmethod
-    def delete(cls):
-        raise NotImplemented()
-
-    @classmethod
-    def update(cls):
-        raise NotImplemented()
-
-    @classmethod
-    def select(cls):
-        raise NotImplemented()
+env = jinja2.Environment(
+    loader=jinja2.PackageLoader('visualization', 'templates'),
+    autoescape=jinja2.select_autoescape(['html', 'xml'])
+)
 
 
 class Chart:
-    def get_template(self):
+    @staticmethod
+    def template():
         raise NotImplemented()
 
-    def save(self):
+    def context(self):
         raise NotImplemented()
 
     def render(self):
         raise NotImplemented()
 
 
-class LineChart(Chart):
-    def __init__(self, chart_id, title):
-        self.id = chart_id
+class TimeLineChart(Chart):
+    def __init__(self, xy_data, title, label, line_color=None,
+                 point_color=None, fill=False,
+                 width=None, height=None):
+        """
+        :param xy_data: Callable object that returns tuple of two elements.
+            Firs element -- iterable that contains X axis data.
+            Second element -- iterable that contains Y axis data.
+            Elements must be the same length
+        :param title: Chart title
+        :param label: Label of the Y axis
+        :param line_color: Color of the line
+        :param point_color: Color of the points on the line
+        :param fill: if True than area under the line will be filled
+            or not if taken False.
+        :param width: width of the html canvas where chart is situated
+        :param height: width of the html canvas where chart is situated
+        """
+        assert(callable(xy_data))
+        self.xy_data = xy_data
+        self.id = uuid.uuid4()
         self.title = title
-        self.x_data = [1, 2, 3, 4, 5, 6, 7]
+        self.label = label
+        self.line_color = line_color or get_random_color()
+        self.point_color = point_color or get_random_color()
+        self.axis_id = get_random_chars()
+        self.fill = fill
+        self.width = width or 60
+        self.height = height or 30
 
     def render(self):
         tmp = self.template()
@@ -45,111 +59,27 @@ class LineChart(Chart):
         return tmp.render(context=context)
 
     def context(self):
+        x_data, y_data = self.xy_data()
+        x_data, y_data = list(x_data), list(y_data)
         return {
+            'width': self.width,
+            'height': self.height,
             'chartId': self.id,
             'chartName': self.title,
-            'xAxisData': self.x_data,
-            'yAxisDataArray': json.dumps([
+            'xAxisData': x_data,
+            'yAxisData': json.dumps(
                 {
-                    'label': 'Feed',
-                    'lineColor': 'red',
-                    'pointColor': 'red',
-                    'axisId': 'y-axis-1',
-                    'fill': False,
-                    'data': [
-                        random.randint(1, 99) * 100,
-                        random.randint(1, 99) * 100,
-                        random.randint(1, 99) * 100,
-                        random.randint(1, 99) * 100,
-                        random.randint(1, 99) * 100,
-                        random.randint(1, 99) * 100,
-                        random.randint(1, 99) * 100
-                    ]
-                },
-                {
-                    'label': 'Spindel',
-                    'lineColor': 'blue',
-                    'pointColor': 'blue',
-                    'axisId': 'y-axis-2',
-                    'fill': False,
-                    'data': [
-                        random.randint(1, 99) * 100,
-                        random.randint(1, 99) * 100,
-                        random.randint(1, 99) * 100,
-                        random.randint(1, 99) * 100,
-                        random.randint(1, 99) * 100,
-                        random.randint(1, 99) * 100,
-                        random.randint(1, 99) * 100
-                    ]
+                    'label': self.label,
+                    'lineColor': self.line_color,
+                    'pointColor': self.point_color,
+                    'axisId': self.axis_id,
+                    'fill': self.fill,
+                    'data': y_data
                 }
-            ])
+            )
         }
 
     @staticmethod
     def template():
-        template_str = """
-        <canvas id="{{ context.chartId }}" width="80" height="40"></canvas>
-        <script>
-            var ctx = document.getElementById({{ context.chartId }});
-
-            var chartName = '{{ context.chartName }}';
-
-            var xAxisData = {{ context.xAxisData }};
-
-            var yAxisDataArray = {{ context.yAxisDataArray | safe }};
-
-            var lineChartData = {
-                labels: xAxisData,
-                datasets: [
-                    {
-                        label: yAxisDataArray[0].label,
-                        borderColor: yAxisDataArray[0].lineColor,
-                        backgroundColor: yAxisDataArray[0].pointColor,
-                        fill: yAxisDataArray[0].fill,
-                        data: yAxisDataArray[0].data,
-                        yAxisID: yAxisDataArray[0].axisId
-                    },
-                    {
-                        label: yAxisDataArray[1].label,
-                        borderColor: yAxisDataArray[1].lineColor,
-                        backgroundColor: yAxisDataArray[1].pointColor,
-                        fill: yAxisDataArray[1].fill,
-                        data: yAxisDataArray[1].data,
-                        yAxisID: yAxisDataArray[1].axisId
-                    }
-                ]
-            };
-
-            Chart.Line(ctx, {
-                data: lineChartData,
-                options: {
-                    responsive: true,
-                    hoverMode: 'index',
-                    stacked: false,
-                    title: {
-                        display: true,
-                        text: chartName
-                    },
-                    scales: {
-                        yAxes: [
-                            {
-                                type: 'linear',
-                                display: true,
-                                position: 'left',
-                                id: yAxisDataArray[0].axisId
-                            },
-                            {
-                                type: 'linear',
-                                display: true,
-                                position: 'right',
-                                id: yAxisDataArray[1].axisId
-                            }
-                        ]
-                    }
-                }
-            });
-
-        </script>
-            """
-
-        return Template(template_str)
+        template = env.get_template('_charts/timeline-chart.html')
+        return template

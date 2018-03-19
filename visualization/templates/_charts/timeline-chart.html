@@ -1,0 +1,51 @@
+<canvas id="{{ context.chartId }}"
+        width="{{ width }}"
+        height="{{ height }}"></canvas>
+
+<script>
+    var ctx = document.getElementById('{{ context.chartId }}');
+
+    var chartName = '{{ context.chartName }}';
+
+    var xAxisData = {{ context.xAxisData }};
+
+    var yAxisData = {{ context.yAxisData | safe }};
+
+    var lineChartData = {
+        labels: xAxisData,
+        datasets: [
+            {
+                label: yAxisData.label,
+                borderColor: yAxisData.lineColor,
+                backgroundColor: yAxisData.pointColor,
+                fill: yAxisData.fill,
+                data: yAxisData.data,
+                yAxisID: yAxisData.axisId
+            }
+        ]
+    };
+
+    Chart.Line(ctx, {
+        data: lineChartData,
+        options: {
+            responsive: true,
+            hoverMode: 'index',
+            stacked: false,
+            title: {
+                display: true,
+                text: chartName
+            },
+            scales: {
+                yAxes: [
+                    {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        id: yAxisData.axisId
+                    }
+                ]
+            }
+        }
+    });
+
+</script>

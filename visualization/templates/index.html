@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>CNC Charts</title>
+</head>
+<body>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.4.0/Chart.min.js"></script>
+{% for chart in charts %}
+    {{ chart | safe }}
+{% endfor %}
+</body>
+</html>

@@ -1,10 +1,13 @@
 import json
 import uuid
-from collections import namedtuple
+import collections
+import types
+import marshal
+import typing
 
 import jinja2
 
-from db import get_cursor
+from db import get_cursor, select_param_with_time
 from utils import get_random_color, get_random_chars
 
 env = jinja2.Environment(
@@ -12,7 +15,7 @@ env = jinja2.Environment(
     autoescape=jinja2.select_autoescape(['html', 'xml'])
 )
 
-__ChartType = namedtuple('ChartType', ['Line', 'Bar', 'Doughnut'])
+__ChartType = collections.namedtuple('ChartType', ['Line', 'Bar', 'Doughnut'])
 chart_type = __ChartType(Line='line', Bar='bar', Doughnut='doughnut')
 all_params = ['Spindel', 'Feed', 'M30', 'Time']
 
@@ -25,16 +28,24 @@ class ChartRenderer:
     def context(self):
         raise NotImplementedError()
 
+    def dumps(self):
+        raise NotImplementedError()
+
+    @classmethod
+    def loads(cls, chart_params, data_provider):
+        raise NotImplementedError()
+
     def render(self):
         raise NotImplementedError()
 
 
 class TimeLineChartRenderer(ChartRenderer):
-    def __init__(self, xy_data, title, label, line_color=None,
+    def __init__(self, xy_data: typing.Callable, title, label, line_color=None,
                  point_color=None, fill=False,
                  width=None, height=None):
         """
-        :param xy_data: Callable object that returns tuple of two elements.
+        :param xy_data: Function or LambdaFunction object that
+            returns tuple of two elements.
             Firs element -- iterable that contains X axis data.
             Second element -- iterable that contains Y axis data.
             Elements must be the same length
@@ -47,7 +58,9 @@ class TimeLineChartRenderer(ChartRenderer):
         :param width: width of the html canvas where chart is situated
         :param height: width of the html canvas where chart is situated
         """
-        assert (callable(xy_data))
+        assert callable(xy_data)
+        assert (isinstance(xy_data, types.FunctionType)
+                or isinstance(xy_data, types.LambdaType))
         self.xy_data = xy_data
         self.id = uuid.uuid4()
         self.title = title
@@ -90,6 +103,19 @@ class TimeLineChartRenderer(ChartRenderer):
         template = env.get_template('_charts/timeline-chart.html')
         return template
 
+    def dumps(self):
+        return json.dumps({
+            'id': self.id.__str__(),
+            'title': self.title,
+            'label': self.label,
+            'line_color': self.line_color,
+            'point_color': self.point_color,
+            'axis_id': self.axis_id,
+            'fill': self.fill,
+            'width': self.width,
+            'height': self.height,
+        }), marshal.dumps(self.xy_data.__code__)
+
 
 class DataSource:
     def __init__(self, chart_type: str, **params):
@@ -99,25 +125,39 @@ class DataSource:
     def __call__(self, *args, **kwargs):
         raise NotImplementedError()
 
+    def get_data_provider(self):
+        if self.chart_type == chart_type.Line:
+            if 'Time' in [self.params.get('x_param'),
+                          self.params.get('y_param')]:
+                return select_param_with_time
+
+        raise NotImplementedError()
+
 
 class Chart:
-    def __init__(self, chart_type: str, data_source: DataSource = None):
+    renderer_class = TimeLineChartRenderer
+
+    def __init__(self, chart_type: str, data_source: DataSource = None, **kw):
         self.chart_type = chart_type
         self.data_source = data_source
         self.machine_id = None
         self.title = None
-        self.chart_params = {}
+        self.chart_params = kw
 
-    def get_chart_params(self):
-        return json.dumps(self.chart_params)
+    def retrieve_chart_params(self, **kw):
+        chart_renderer = self.renderer_class.loads(**kw)
+        return chart_renderer
 
     def save(self):
         conn, curr = get_cursor()
+        chart_renderer = self.renderer_class(
+            xy_data=self.data_source.get_data_provider(),
+            title='SomeTitle', label='SomeLabel')
+        chart_context, data_provider = chart_renderer.dumps()
         curr.execute("""
-        insert into chart(machine_id, title, chart_type, chart_params) 
-        values(?, ?, ?, ?)
-        """, [self.machine_id, self.title,
-              self.chart_type, self.get_chart_params()])
+        insert into chart(machine_id, title, chart_type, chart_params, data_provider) 
+        values(?, ?, ?, ?, ?)
+        """, [self.machine_id, self.title, self.chart_type, chart_context, data_provider])
         conn.commit()
 
     def retrieve(self, chart_id):

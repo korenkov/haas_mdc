@@ -1,26 +1,14 @@
 from flask import Flask, render_template, request, url_for, redirect
 
-from db import get_cursor
+from db import select_param_with_time
 from visualization import chartjs as chjs
 
 app = Flask(__name__)
 
 
-def select_param_data(from_date, to_date, param_code, machine_id):
-    conn, c = get_cursor(db='data.db')
-    for row in c.execute("""
-    SELECT 
-        log_date,
-        param_val
-    FROM params_data 
-    WHERE (log_date BETWEEN ? and ?) and param_code = ? and machine_id = ?
-    """, [from_date, to_date, param_code, machine_id]):
-        yield row
-
-
 def xy_data(param_code, machine_id, from_date=0, to_date=100000000000):
     return lambda: zip(
-        *[r for r in select_param_data(from_date, to_date, param_code, machine_id)]
+        *[r for r in select_param_with_time(from_date, to_date, param_code, machine_id)]
     )
 
 

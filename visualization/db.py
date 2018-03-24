@@ -27,10 +27,11 @@ def create_schema(db=CHARTS_DB):
     try:
         c.execute("""
         create table if not exists chart (
-            id         integer primary key autoincrement,
-            machine_id text,
-            title      text,
-            type       integer
+            id           integer primary key autoincrement,
+            machine_id   varchar(256),
+            title        varchar(256),
+            chart_type   varchar(256),
+            chart_params varchar(2000)
         )
         """)
         conn.commit()

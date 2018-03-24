@@ -1,8 +1,10 @@
 import json
 import uuid
+from collections import namedtuple
 
 import jinja2
 
+from db import get_cursor
 from utils import get_random_color, get_random_chars
 
 env = jinja2.Environment(
@@ -10,20 +12,24 @@ env = jinja2.Environment(
     autoescape=jinja2.select_autoescape(['html', 'xml'])
 )
 
+__ChartType = namedtuple('ChartType', ['Line', 'Bar', 'Doughnut'])
+chart_type = __ChartType(Line='line', Bar='bar', Doughnut='doughnut')
+all_params = ['Spindel', 'Feed', 'M30', 'Time']
 
-class Chart:
+
+class ChartRenderer:
     @staticmethod
     def template():
-        raise NotImplemented()
+        raise NotImplementedError()
 
     def context(self):
-        raise NotImplemented()
+        raise NotImplementedError()
 
     def render(self):
-        raise NotImplemented()
+        raise NotImplementedError()
 
 
-class TimeLineChart(Chart):
+class TimeLineChartRenderer(ChartRenderer):
     def __init__(self, xy_data, title, label, line_color=None,
                  point_color=None, fill=False,
                  width=None, height=None):
@@ -41,7 +47,7 @@ class TimeLineChart(Chart):
         :param width: width of the html canvas where chart is situated
         :param height: width of the html canvas where chart is situated
         """
-        assert(callable(xy_data))
+        assert (callable(xy_data))
         self.xy_data = xy_data
         self.id = uuid.uuid4()
         self.title = title
@@ -83,3 +89,39 @@ class TimeLineChart(Chart):
     def template():
         template = env.get_template('_charts/timeline-chart.html')
         return template
+
+
+class DataSource:
+    def __init__(self, chart_type: str, **params):
+        self.chart_type = chart_type
+        self.params = params
+
+    def __call__(self, *args, **kwargs):
+        raise NotImplementedError()
+
+
+class Chart:
+    def __init__(self, chart_type: str, data_source: DataSource = None):
+        self.chart_type = chart_type
+        self.data_source = data_source
+        self.machine_id = None
+        self.title = None
+        self.chart_params = {}
+
+    def get_chart_params(self):
+        return json.dumps(self.chart_params)
+
+    def save(self):
+        conn, curr = get_cursor()
+        curr.execute("""
+        insert into chart(machine_id, title, chart_type, chart_params) 
+        values(?, ?, ?, ?)
+        """, [self.machine_id, self.title,
+              self.chart_type, self.get_chart_params()])
+        conn.commit()
+
+    def retrieve(self, chart_id):
+        raise NotImplementedError()
+
+    def retrieve_all(self):
+        raise NotImplementedError()

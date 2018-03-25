@@ -1,0 +1,113 @@
+<form id="new-chart-form" action="{{ url_for('new') }}">
+    <div class="field">
+        <label for="chart_type">Chart type:</label>
+        <select name="chart_type" id="chart_type">
+            {% for type in chart_type %}
+                <option value="{{ type }}">{{ type }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div class="field">
+        <label for="machine_id">Machine ID:</label>
+        <input type="text" id="machine_id" name="machine_id">
+    </div>
+
+    <div class="field">
+        <label for="title">Title:</label>
+        <input type="text" id="title" name="title">
+    </div>
+
+    <div class="field">
+        <label for="label">label:</label>
+        <input type="text" id="label" name="label">
+    </div>
+
+    <div id="xy-settings" class="field-set" hidden>
+        <div class="field">
+            <label for="x">X-Axes:</label>
+            <select name="x" id="x">
+                {% for param in all_params %}
+                    <option value="{{ param }}">{{ param }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="field">
+            <label for="y">Y-Axes:</label>
+            <select name="y" id="y">
+                {% for param in all_params %}
+                    <option value="{{ param }}">{{ param }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
+    <div class="field-set" id="params-settings" hidden>
+        <label for="params-choices"></label>
+        <div class="field" id="params-choices">
+            {% for param in all_params %}
+                <label for="{{ param }}">{{ param }}</label>
+                <input type="checkbox" id="{{ param }}" name="{{ param }}"
+                       value="{{ param }}">
+            {% endfor %}
+        </div>
+    </div>
+
+
+    <div class="field">
+        <button type="submit">Create chart</button>
+    </div>
+</form>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+<script>
+    // Get the form.
+    var form = $('#new-chart-form');
+
+    // Get params settings fields section
+    var params_settings = $('#params-settings');
+
+    // Get xy settings fields section
+    var xy_settings = $('#xy-settings');
+
+    var chart_type_selector = $('#chart_type');
+
+    var checkType = function (chartType) {
+        if (chartType === 'line') {
+            $(xy_settings).show();
+            $(params_settings).hide();
+        } else {
+            $(xy_settings).hide();
+            $(params_settings).show();
+        }
+    };
+
+    checkType($(chart_type_selector).find(":selected").text());
+
+
+    $(chart_type_selector).change(function () {
+        var chart_type = $(this).val();
+        checkType(chart_type)
+    });
+
+    $(form).submit(function (event) {
+        // Stop the browser from submitting the form.
+        event.preventDefault();
+        // Serialize the form data.
+        var formData = $(form).serialize();
+        // Submit the form using AJAX.
+        $.ajax({
+            type: 'POST',
+            url: $(form).attr('action'),
+            data: formData
+        }).done(function (response) {
+            window.location = '/';
+        }).fail(function (data) {
+            // Set the message text.
+            if (Math.floor(data.status / 100) !== 2) {
+                alert('Something wrong');
+            }
+        });
+
+    });
+</script>

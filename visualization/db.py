@@ -27,15 +27,39 @@ def create_schema(db=CHARTS_DB):
     try:
         c.execute("""
         create table if not exists chart (
-            id         integer primary key autoincrement,
-            machine_id text,
-            title      text,
-            type       integer
+            id           integer primary key autoincrement,
+            machine_id    varchar(256),
+            chart_type    varchar(256),
+            chart_params  varchar(2000),
+            data_provider varchar(256)
         )
         """)
         conn.commit()
     except sqlite3.OperationalError as e:
         print(e)
+
+
+def select_param_with_time(from_date, to_date, param_code, machine_id):
+    conn, c = get_cursor(db='data.db')
+    for row in c.execute("""
+    SELECT 
+        log_date,
+        param_val
+    FROM params_data 
+    WHERE (log_date BETWEEN ? and ?) and param_code = ? and machine_id = ?
+    """, [from_date, to_date, param_code, machine_id]):
+        yield row
+
+
+def select_single_param(from_date, to_date, param_code, machine_id):
+    conn, c = get_cursor(db='data.db')
+    for row in c.execute("""
+        SELECT 
+            param_val
+        FROM params_data 
+        WHERE (log_date BETWEEN ? and ?) and param_code = ? and machine_id = ?
+        """, [from_date, to_date, param_code, machine_id]):
+        yield row
 
 
 if __name__ == '__main__':

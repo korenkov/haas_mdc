@@ -17,19 +17,15 @@ env = jinja2.Environment(
 
 __ChartType = collections.namedtuple('ChartType', ['Line', 'Bar', 'Doughnut'])
 chart_type = __ChartType(Line='line', Bar='bar', Doughnut='doughnut')
-all_params = ['Spindel', 'Feed', 'M30', 'Time']
-PARAM_NAMES_MAP = {
-    '1094': 'Spindle load',
-    '3022': 'Feed timer',
-    '3901': 'M30 count',
-    '5701': 'Tool life monitor counter'
-}
+
 _params_map = {
     'Spindel': '1094',
     'Feed': '3022',
     'M30': '3901',
     'Tool life': '5701'
 }
+
+all_params = _params_map.keys()
 
 
 def _f():
@@ -39,6 +35,20 @@ def _f():
                                  param_code='5701',
                                  machine_id='cnc_1')])
 
+_param_selector_map = {
+    'by_time': {
+        'Spindel': '',
+        'Feed': '',
+        'M30': '',
+        'Tool life': '',
+    },
+    'single': {
+        'Spindel': '',
+        'Feed': '',
+        'M30': '',
+        'Tool life': '',
+    }
+}
 
 
 class ChartRenderer:
@@ -199,10 +209,8 @@ class Chart:
             FROM chart 
             """
         for i, row in enumerate(c.execute(_sql)):
-            xy_data = row[-1]
-            id_ = row[0]
-            machine_id = row[1]
-            chart_type_ = row[2]
+            # machine_id = row[1]
+            # chart_type_ = row[2]
             chart_params = json.loads(row[3])
             func_code = marshal.loads(row[4])
             data_provider = types.FunctionType(func_code, globals(), '')

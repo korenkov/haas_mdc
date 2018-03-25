@@ -18,6 +18,27 @@ env = jinja2.Environment(
 __ChartType = collections.namedtuple('ChartType', ['Line', 'Bar', 'Doughnut'])
 chart_type = __ChartType(Line='line', Bar='bar', Doughnut='doughnut')
 all_params = ['Spindel', 'Feed', 'M30', 'Time']
+PARAM_NAMES_MAP = {
+    '1094': 'Spindle load',
+    '3022': 'Feed timer',
+    '3901': 'M30 count',
+    '5701': 'Tool life monitor counter'
+}
+_params_map = {
+    'Spindel': '1094',
+    'Feed': '3022',
+    'M30': '3901',
+    'Tool life': '5701'
+}
+
+
+def _f():
+    return zip(*[r for r in
+          select_param_with_time(from_date=0,
+                                 to_date=100000000000,
+                                 param_code='5701',
+                                 machine_id='cnc_1')])
+
 
 
 class ChartRenderer:
@@ -78,7 +99,7 @@ class TimeLineChartRenderer(ChartRenderer):
         return tmp.render(context=context)
 
     def context(self):
-        x_data, y_data = self.xy_data()
+        x_data, y_data = list(self.xy_data())
         x_data, y_data = list(x_data), list(y_data)
         return {
             'width': self.width,
@@ -129,7 +150,8 @@ class DataSource:
         if self.chart_type == chart_type.Line:
             if 'Time' in [self.params.get('x_param'),
                           self.params.get('y_param')]:
-                return select_param_with_time
+
+                return _f
 
         raise NotImplementedError()
 
@@ -157,11 +179,42 @@ class Chart:
         curr.execute("""
         insert into chart(machine_id, title, chart_type, chart_params, data_provider) 
         values(?, ?, ?, ?, ?)
-        """, [self.machine_id, self.title, self.chart_type, chart_context, data_provider])
+        """, [self.machine_id, self.title, self.chart_type, chart_context,
+              data_provider])
         conn.commit()
 
     def retrieve(self, chart_id):
         raise NotImplementedError()
 
-    def retrieve_all(self):
-        raise NotImplementedError()
+    @classmethod
+    def retrieve_all(cls):
+        conn, c = get_cursor()
+        _sql = """
+            SELECT 
+                id,
+                machine_id,
+                chart_type,
+                chart_params,
+                data_provider
+            FROM chart 
+            """
+        for i, row in enumerate(c.execute(_sql)):
+            xy_data = row[-1]
+            id_ = row[0]
+            machine_id = row[1]
+            chart_type_ = row[2]
+            chart_params = json.loads(row[3])
+            func_code = marshal.loads(row[4])
+            data_provider = types.FunctionType(func_code, globals(), '')
+            ch = cls.renderer_class(
+                xy_data=data_provider,
+                title=chart_params['title'],
+                label=chart_params['label'],
+                line_color=chart_params['line_color'],
+                point_color=chart_params['point_color'],
+                fill=chart_params['fill'],
+                width=chart_params['width'],
+                height=chart_params['height']
+            )
+
+            yield ch.render()

@@ -28,10 +28,10 @@ def create_schema(db=CHARTS_DB):
         c.execute("""
         create table if not exists chart (
             id           integer primary key autoincrement,
-            machine_id   varchar(256),
-            chart_type   varchar(256),
-            chart_params varchar(2000),
-            data_provider BLOB
+            machine_id    varchar(256),
+            chart_type    varchar(256),
+            chart_params  varchar(2000),
+            data_provider varchar(256)
         )
         """)
         conn.commit()
@@ -51,7 +51,7 @@ def select_param_with_time(from_date, to_date, param_code, machine_id):
         yield row
 
 
-def select_param_data(from_date, to_date, param_code, machine_id):
+def select_single_param(from_date, to_date, param_code, machine_id):
     conn, c = get_cursor(db='data.db')
     for row in c.execute("""
         SELECT 

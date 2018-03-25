@@ -23,12 +23,16 @@ def new():
     elif request.method == 'POST':
         print(request.form)
         chart_type = request.form.get('chart_type')
+        machine_id = request.form.get('machine_id')
+        label = request.form.get('label')
+        title = request.form.get('title')
         if chart_type == chjs.chart_type.Line:
             x_param = request.form.get('x')
             y_param = request.form.get('y')
             ds = chjs.DataSource(
                 chart_type=chart_type, x_param=x_param, y_param=y_param)
-            ch = chjs.Chart(chart_type=chart_type, data_source=ds)
+            ch = chjs.Chart(chart_type=chart_type, data_source=ds,
+                            machine_id=machine_id, label=label, title=title)
             ch.save()
         elif chart_type in (chjs.chart_type.Bar, chjs.chart_type.Doughnut):
             params = request.form.get('params')
